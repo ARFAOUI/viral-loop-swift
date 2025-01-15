@@ -45,6 +45,15 @@ public class ViralloopClient {
         Logger.info("Viralloop client initialized with appId: \(appId)")
         initializeUser()
     }
+    // Method to get referral code from offline storage
+     func getReferralCodeFromStorage() -> String? {
+         return Storage.getReferralCode()
+     }
+     
+     // Property to check if referral code is available in storage
+     var hasReferralCodeInStorage: Bool {
+         return Storage.getReferralCode() != nil
+     }
     
     private func initializeUser() {
         // Check if we already have a user ID
@@ -205,6 +214,33 @@ public class ViralloopClient {
             case .success(let status):
                 Storage.cacheReferralStatus(status)
                 completion(.success(status))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    public func updateLifetimeValue(_ lifetimeValue: Double, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let userId = currentUser?.externalUserId else {
+            completion(.failure(ViralloopError.userNotInitialized))
+            return
+        }
+        
+        let update = UserUpdate(
+            isPaidUser: currentUser?.isPaidUser ?? false,
+            lifetimeValueUsd: lifetimeValue
+        )
+        
+        guard let data = try? JSONEncoder().encode(update) else {
+            completion(.failure(ViralloopError.encodingError))
+            return
+        }
+        
+        makeRequest("users/\(userId)", method: "PUT", body: data) { [weak self] (result: Result<User, Error>) in
+            switch result {
+            case .success(let user):
+                self?.currentUser = user
+                completion(.success(()))
             case .failure(let error):
                 completion(.failure(error))
             }
