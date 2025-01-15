@@ -1,4 +1,4 @@
-# Viralloop
+# Viralloop - Refferal code system for viral Apps
 
 A Swift package for integrating Viralloop referral system.
 
