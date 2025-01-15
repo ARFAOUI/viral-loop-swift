@@ -60,7 +60,7 @@ public class ViralloopClient {
                 operatingSystem: deviceInfo.os,
                 osVersion: deviceInfo.osVersion,
                 appVersion: appInfo.version,
-                appBuildNumber: appInfo.buildNumber,
+                appBuildNumber: String(appInfo.buildNumber),
                 isPaidUser: false,
                 lifetimeValueUsd: 0.0,  // Explicitly set as Double
                 referralCode: Storage.getReferralCode()
@@ -82,7 +82,7 @@ public class ViralloopClient {
             operatingSystem: deviceInfo.os,
             osVersion: deviceInfo.osVersion,
             appVersion: appInfo.version,
-            appBuildNumber: appInfo.buildNumber,
+            appBuildNumber: String(appInfo.buildNumber),
             isPaidUser: false,
             lifetimeValueUsd: 0.0,  // Explicitly set as Double
             referralCode: nil
@@ -214,9 +214,9 @@ public class ViralloopClient {
     // MARK: - Private Network Request Method
     
     private func makeRequest<T: Codable>(_ endpoint: String,
-                                       method: String = "GET",
-                                       body: Data? = nil,
-                                       completion: @escaping (Result<T, Error>) -> Void) {
+                                         method: String = "GET",
+                                         body: Data? = nil,
+                                         completion: @escaping (Result<T, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/apps/\(appId)/\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -229,6 +229,7 @@ public class ViralloopClient {
         }
         
         let task = session.dataTask(with: request) { data, response, error in
+            // Error handling
             if let error = error {
                 DispatchQueue.main.async {
                     completion(.failure(error))
@@ -250,6 +251,12 @@ public class ViralloopClient {
                 return
             }
             
+            // Debug logging for full JSON response
+            if let rawJsonString = String(data: data, encoding: .utf8) {
+                Logger.debug("Raw JSON Response for \(endpoint): \(rawJsonString)")
+            }
+            
+            // HTTP error handling
             if httpResponse.statusCode >= 400 {
                 if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
                     DispatchQueue.main.async {
@@ -263,12 +270,21 @@ public class ViralloopClient {
                 return
             }
             
+            // Decoding
             do {
                 let decoded = try JSONDecoder().decode(T.self, from: data)
                 DispatchQueue.main.async {
                     completion(.success(decoded))
                 }
             } catch {
+                // Log detailed decoding error
+                Logger.error("Decoding Error: \(error)")
+                
+                // If decoding fails, log the raw data for investigation
+                if let rawJsonString = String(data: data, encoding: .utf8) {
+                    Logger.error("Failed to decode JSON: \(rawJsonString)")
+                }
+                
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
