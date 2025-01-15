@@ -46,12 +46,12 @@ public class ViralloopClient {
         initializeUser()
     }
     // Method to get referral code from offline storage
-     func getReferralCodeFromStorage() -> String? {
+     public func getReferralCodeFromStorage() -> String? {
          return Storage.getReferralCode()
      }
      
      // Property to check if referral code is available in storage
-     var hasReferralCodeInStorage: Bool {
+     public var hasReferralCodeInStorage: Bool {
          return Storage.getReferralCode() != nil
      }
     
@@ -142,9 +142,10 @@ public class ViralloopClient {
             return
         }
         
-        makeRequest("users/\(userId)/referral-status") { (result: Result<ReferralStatus, Error>) in
+        makeRequest("users/\(userId)/referral-status") { (result: Result<ReferralStatusResponse, Error>) in
             switch result {
-            case .success(let status):
+            case .success(let response):
+                let status = response.referralStatus
                 Storage.cacheReferralStatus(status)
                 completion(.success(status))
             case .failure(let error):
@@ -308,9 +309,25 @@ public class ViralloopClient {
             
             // Decoding
             do {
-                let decoded = try JSONDecoder().decode(T.self, from: data)
-                DispatchQueue.main.async {
-                    completion(.success(decoded))
+                if T.self == User.self {
+                    // Try decoding as UserResponse first
+                    if let userResponse = try? JSONDecoder().decode(UserResponse.self, from: data) {
+                        DispatchQueue.main.async {
+                            completion(.success(userResponse.user as! T))
+                        }
+                    } else {
+                        // If that fails, try decoding directly as User
+                        let user = try JSONDecoder().decode(User.self, from: data)
+                        DispatchQueue.main.async {
+                            completion(.success(user as! T))
+                        }
+                    }
+                } else {
+                    // General case for other types
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    DispatchQueue.main.async {
+                        completion(.success(decoded))
+                    }
                 }
             } catch {
                 // Log detailed decoding error
@@ -340,5 +357,7 @@ public enum ViralloopError: Error {
     case noData
     case unknownError
 }
+
+
 
 

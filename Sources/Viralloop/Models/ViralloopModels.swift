@@ -96,10 +96,43 @@ internal struct User: Codable {
         self.referralCode = referralCode
     }
 }
+
 public struct ReferralStatus: Codable {
-    public let totalReferrals: Int
-    public let pendingRewards: Double
-    public let redeemedRewards: Double
+    public let activeReferrals: Int
+    public let requiredInvitations: Int
+    public let remainingInvitations: Int
+    public let isComplete: Bool
+    public let referralCode: String
+    
+    // Custom coding keys to match the JSON structure
+    enum CodingKeys: String, CodingKey {
+        case activeReferrals
+        case requiredInvitations
+        case remainingInvitations
+        case isComplete
+        case referralCode
+    }
+    
+    // Custom initializer to handle nested JSON and type conversions
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Handle activeReferrals as a string
+        if let stringValue = try? container.decode(String.self, forKey: .activeReferrals) {
+            activeReferrals = Int(stringValue) ?? 0
+        } else {
+            activeReferrals = try container.decode(Int.self, forKey: .activeReferrals)
+        }
+        
+        requiredInvitations = try container.decode(Int.self, forKey: .requiredInvitations)
+        remainingInvitations = try container.decode(Int.self, forKey: .remainingInvitations)
+        isComplete = try container.decode(Bool.self, forKey: .isComplete)
+        referralCode = try container.decode(String.self, forKey: .referralCode)
+    }
+}
+
+public struct ReferralStatusResponse: Codable {
+    public let referralStatus: ReferralStatus
 }
 
 internal struct ReferralSubmission: Codable {
@@ -120,4 +153,8 @@ public struct APIError: Codable {
         self.error = error
         self.message = message
     }
+}
+
+struct UserResponse: Codable {
+    let user: User
 }
