@@ -1,4 +1,4 @@
-# Viralloop
+# Viralloop - Refferal code system for viral Apps
 
 A Swift package for integrating Viralloop referral system.
 
@@ -7,7 +7,7 @@ A Swift package for integrating Viralloop referral system.
 Add this package to your Xcode project using Swift Package Manager:
 
 1. File > Add Packages...
-2. Enter the package URL: `https://github.com/yourusername/viralloop.git`
+2. Enter the package URL: https://github.com/ARFAOUI/viral-loop-swift.git
 
 ## Usage
 
