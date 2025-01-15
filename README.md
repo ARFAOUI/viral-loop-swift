@@ -148,13 +148,16 @@ ViralloopClient.shared().updateLifetimeValue(100.50) {
 
 ### 2. Update Paid User Status
 ```swift
-ViralloopClient.shared().updatePaidStatus(true) { result in
-    switch result {
-    case .success:
-        // Paid status updated successfully
-    case .failure(let error):
-        // Handle update error
-    }
+ViralloopClient.shared().updatePaidStatus(true) {
+    result in
+        switch result {
+            case.success:
+                // Paid status updated successfully
+                print("Paid status updated successfully")
+            case.failure(let error):
+                // Handle update error
+                print("Error updatePaidStatus: \(error)")
+        }
 }
 ```
 - **Description**: Updates user's paid subscription status
