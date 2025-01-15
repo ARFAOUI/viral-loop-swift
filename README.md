@@ -126,13 +126,16 @@ ViralloopClient.shared().redeemRewards {
 
 ### 1. Update Lifetime Value (LTV)
 ```swift
-ViralloopClient.shared().updateLifetimeValue(100.50) { result in
-    switch result {
-    case .success:
-        // Lifetime value updated successfully
-    case .failure(let error):
-        // Handle update error
-    }
+ViralloopClient.shared().updateLifetimeValue(100.50) {
+    result in
+        switch result {
+            case.success:
+                // Lifetime value updated successfully
+                print("Lifetime value updated successfully")
+            case.failure(let error):
+                // Handle update error
+                print("Error updateLifetimeValue: \(error)")
+        }
 }
 ```
 - **Description**: Updates user's lifetime value in USD
