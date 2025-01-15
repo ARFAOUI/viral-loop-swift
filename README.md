@@ -62,7 +62,7 @@ if hasReferralCode {
     // User has a referral code
     // Proceed with friend invitation flow
     let referralCode = ViralloopClient.shared().getReferralCodeFromStorage()
-    prepareReferralSharing(code: referralCode)
+    // you can show you code in the UI here
 } else {
     // Handle scenario without a referral code
     // Potentially request code generation or show error
