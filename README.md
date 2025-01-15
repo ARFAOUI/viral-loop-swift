@@ -9,7 +9,13 @@ Add this package to your Xcode project using Swift Package Manager:
 1. File > Add Packages...
 2. Enter the package URL: https://github.com/ARFAOUI/viral-loop-swift.git
 
-## Usage
+# Viralloop iOS SDK
+
+## Installation
+
+(Add your preferred installation method here, e.g., CocoaPods, Swift Package Manager)
+
+## Core Methods
 
 ### 1. Configure SDK
 ```swift
@@ -23,10 +29,10 @@ ViralloopClient.configure(apiKey: "YOUR_API_KEY", appId: "YOUR_APP_ID")
   - `logLevel`: Optional logging level (default: .info)
 
 ### 2. Submit Referral Code
-- **Typical Use Case**: Capture referral code during app onboarding
-  - Prompt users: "Do you have a referral code?"
-  - Collect referral code input during initial app setup
-  - Use this method to process the entered referral code
+- **Typical Use Case**: Verify user's referral code before sharing with friends
+  - Confirm a referral code is generated
+  - Validate code availability before initiating friend invitations
+  - Prepare sharing mechanisms (social media, messaging, etc.)
 
 ```swift
 ViralloopClient.shared().submitReferralCode("REFERRAL_CODE") { result in
@@ -56,7 +62,7 @@ if hasReferralCode {
     // User has a referral code
     // Proceed with friend invitation flow
     let referralCode = ViralloopClient.shared().getReferralCodeFromStorage()
-    prepareReferralSharing(code: referralCode)
+    // you can show you code in the UI here
 } else {
     // Handle scenario without a referral code
     // Potentially request code generation or show error
@@ -82,12 +88,15 @@ if let referralCode = ViralloopClient.shared().getReferralCodeFromStorage() {
 ViralloopClient.shared().getReferralStatus { result in
     switch result {
     case .success(let status):
-        // Access referral status attributes
-        print("Total Referrals: \(status.totalReferrals)")
-        print("Pending Rewards: \(status.pendingRewards)")
-        print("Redeemed Rewards: \(status.redeemedRewards)")
+        // Number of users joined using his code
+        print("Total Referrals: \(status.activeReferrals)") 
+        // Number invitation required left to match the reward condition
+        print("Pending Rewards: \(status.remainingInvitations)") 
+        // This is the required number of invitation required by app
+        print("Redeemed Rewards: \(status.requiredInvitations)")
     case .failure(let error):
         // Handle error
+        print("Error fetching referral status: \(error)")
     }
 }
 ```
@@ -96,13 +105,19 @@ ViralloopClient.shared().getReferralStatus { result in
 
 ### 6. Redeem Rewards
 ```swift
-ViralloopClient.shared().redeemRewards { result in
-    switch result {
-    case .success(let status):
-        // Handle reward redemption
-    case .failure(let error):
-        // Handle redemption error
-    }
+ViralloopClient.shared().redeemRewards {
+    result in
+        switch result {
+            case.success(let status):
+                // Handle reward redemption -> offer the reward to the user
+                // our already applied the reward in our servers and set the invitation to redeemed.
+                // for example if the required invitations count is 3 and the user invited 5, we redeem 3 and we keep 2 available once the total 3 is met again we can redeem him again.
+                // this scenario is usefull if you have a game and you want to offer coins for each x friends.
+                print("redeemed rewards: \(status)")
+            case.failure(let error):
+                // Handle redemption error
+                print("Error fetching referral status: \(error)")
+        }
 }
 ```
 - **Description**: Allows user to redeem accumulated referral rewards
@@ -111,13 +126,16 @@ ViralloopClient.shared().redeemRewards { result in
 
 ### 1. Update Lifetime Value (LTV)
 ```swift
-ViralloopClient.shared().updateLifetimeValue(100.50) { result in
-    switch result {
-    case .success:
-        // Lifetime value updated successfully
-    case .failure(let error):
-        // Handle update error
-    }
+ViralloopClient.shared().updateLifetimeValue(100.50) {
+    result in
+        switch result {
+            case.success:
+                // Lifetime value updated successfully
+                print("Lifetime value updated successfully")
+            case.failure(let error):
+                // Handle update error
+                print("Error updateLifetimeValue: \(error)")
+        }
 }
 ```
 - **Description**: Updates user's lifetime value in USD
@@ -130,13 +148,16 @@ ViralloopClient.shared().updateLifetimeValue(100.50) { result in
 
 ### 2. Update Paid User Status
 ```swift
-ViralloopClient.shared().updatePaidStatus(true) { result in
-    switch result {
-    case .success:
-        // Paid status updated successfully
-    case .failure(let error):
-        // Handle update error
-    }
+ViralloopClient.shared().updatePaidStatus(true) {
+    result in
+        switch result {
+            case.success:
+                // Paid status updated successfully
+                print("Paid status updated successfully")
+            case.failure(let error):
+                // Handle update error
+                print("Error updatePaidStatus: \(error)")
+        }
 }
 ```
 - **Description**: Updates user's paid subscription status
