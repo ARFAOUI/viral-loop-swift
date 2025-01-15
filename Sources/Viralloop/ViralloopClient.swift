@@ -62,7 +62,7 @@ public class ViralloopClient {
                 appVersion: appInfo.version,
                 appBuildNumber: appInfo.buildNumber,
                 isPaidUser: false,
-                lifetimeValueUsd: 0,
+                lifetimeValueUsd: 0.0,  // Explicitly set as Double
                 referralCode: Storage.getReferralCode()
             )
             Logger.info("Existing user loaded: \(existingUserId)")
@@ -84,7 +84,7 @@ public class ViralloopClient {
             appVersion: appInfo.version,
             appBuildNumber: appInfo.buildNumber,
             isPaidUser: false,
-            lifetimeValueUsd: 0,
+            lifetimeValueUsd: 0.0,  // Explicitly set as Double
             referralCode: nil
         )
         

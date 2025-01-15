@@ -17,10 +17,24 @@ internal struct User: Codable {
     let appVersion: String
     let appBuildNumber: Int
     var isPaidUser: Bool
-    var lifetimeValueUsd: Double
+    var lifetimeValueUsd: Double  // Explicitly typed as Double
     let referralCode: String?
+    
+    // Add custom coding keys if needed
+    private enum CodingKeys: String, CodingKey {
+        case externalUserId
+        case deviceType
+        case deviceBrand
+        case deviceModel
+        case operatingSystem
+        case osVersion
+        case appVersion
+        case appBuildNumber
+        case isPaidUser
+        case lifetimeValueUsd
+        case referralCode
+    }
 }
-
 public struct ReferralStatus: Codable {
     public let totalReferrals: Int
     public let pendingRewards: Double
