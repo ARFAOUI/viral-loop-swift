@@ -105,14 +105,19 @@ ViralloopClient.shared().getReferralStatus { result in
 
 ### 6. Redeem Rewards
 ```swift
-ViralloopClient.shared().redeemRewards { result in
-    switch result {
-    case .success(let status):
-        // Handle reward redemption
-    case .failure(let error):
-        // Handle redemption error
-    }
-}
+         ViralloopClient.shared().redeemRewards { result in
+                switch result {
+                case .success(let status):
+                    // Handle reward redemption
+                    // our already applied the reward in our servers and set the invitation to redeemed.
+                    // for example if the required invitationscount is 3 and the user invited 5, we redeem 3 and we keep 2 available once the total 3 is met again we can redeem him again.
+                    // this scenario is usefull if you have a game and you want to offer coins for each x friends.
+                    print("redeemed rewards: \(status)")
+                case .failure(let error):
+                    // Handle redemption error
+                    print("Error fetching referral status: \(error)")
+                }
+            }
 ```
 - **Description**: Allows user to redeem accumulated referral rewards
 
