@@ -9,7 +9,13 @@ Add this package to your Xcode project using Swift Package Manager:
 1. File > Add Packages...
 2. Enter the package URL: https://github.com/ARFAOUI/viral-loop-swift.git
 
-## Usage
+# Viralloop iOS SDK
+
+## Installation
+
+(Add your preferred installation method here, e.g., CocoaPods, Swift Package Manager)
+
+## Core Methods
 
 ### 1. Configure SDK
 ```swift
@@ -23,10 +29,10 @@ ViralloopClient.configure(apiKey: "YOUR_API_KEY", appId: "YOUR_APP_ID")
   - `logLevel`: Optional logging level (default: .info)
 
 ### 2. Submit Referral Code
-- **Typical Use Case**: Capture referral code during app onboarding
-  - Prompt users: "Do you have a referral code?"
-  - Collect referral code input during initial app setup
-  - Use this method to process the entered referral code
+- **Typical Use Case**: Verify user's referral code before sharing with friends
+  - Confirm a referral code is generated
+  - Validate code availability before initiating friend invitations
+  - Prepare sharing mechanisms (social media, messaging, etc.)
 
 ```swift
 ViralloopClient.shared().submitReferralCode("REFERRAL_CODE") { result in
@@ -82,12 +88,15 @@ if let referralCode = ViralloopClient.shared().getReferralCodeFromStorage() {
 ViralloopClient.shared().getReferralStatus { result in
     switch result {
     case .success(let status):
-        // Access referral status attributes
-        print("Total Referrals: \(status.totalReferrals)")
-        print("Pending Rewards: \(status.pendingRewards)")
-        print("Redeemed Rewards: \(status.redeemedRewards)")
+        // Number of users joined using his code
+        print("Total Referrals: \(status.activeReferrals)") 
+        // Number invitation required left to match the reward condition
+        print("Pending Rewards: \(status.remainingInvitations)") 
+        // This is the required number of invitation required by app
+        print("Redeemed Rewards: \(status.requiredInvitations)")
     case .failure(let error):
         // Handle error
+        print("Error fetching referral status: \(error)")
     }
 }
 ```
