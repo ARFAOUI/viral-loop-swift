@@ -154,9 +154,7 @@ public class ViralloopClient {
         }
     }
     
-    public func submitReferralCode(_ code: String, completion: @escaping (Result<ReferralStatus, Error>) -> Void) {
-        Storage.clearReferralStatusCache()
-        
+    public func submitReferralCode(_ code: String, completion: @escaping (Result<ReferralSubmissionResponse, Error>) -> Void) {
         guard let userId = currentUser?.externalUserId else {
             completion(.failure(ViralloopError.userNotInitialized))
             return
@@ -168,15 +166,7 @@ public class ViralloopClient {
             return
         }
         
-        makeRequest("users/\(userId)/submit-referral", method: "POST", body: data) { (result: Result<ReferralStatus, Error>) in
-            switch result {
-            case .success(let status):
-                Storage.cacheReferralStatus(status)
-                completion(.success(status))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        makeRequest("users/\(userId)/submit-referral", method: "POST", body: data, completion: completion)
     }
     
     public func updatePaidStatus(_ isPaid: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
@@ -295,11 +285,23 @@ public class ViralloopClient {
             
             // HTTP error handling
             if httpResponse.statusCode >= 400 {
-                if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
-                    DispatchQueue.main.async {
-                        completion(.failure(ViralloopError.apiError(errorResponse)))
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                        if let errorMessage = json["error"] as? String {
+                            DispatchQueue.main.async {
+                                completion(.failure(ViralloopError.apiError(message: errorMessage)))
+                            }
+                        } else {
+                            DispatchQueue.main.async {
+                                completion(.failure(ViralloopError.unknownError))
+                            }
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            completion(.failure(ViralloopError.unknownError))
+                        }
                     }
-                } else {
+                } catch {
                     DispatchQueue.main.async {
                         completion(.failure(ViralloopError.unknownError))
                     }
@@ -339,7 +341,7 @@ public class ViralloopClient {
                 }
                 
                 DispatchQueue.main.async {
-                    completion(.failure(error))
+                    completion(.failure(ViralloopError.decodingError(message: error.localizedDescription)))
                 }
             }
         }
@@ -348,15 +350,6 @@ public class ViralloopClient {
     }
 }
 
-public enum ViralloopError: Error {
-    case invalidResponse
-    case apiError(APIError)
-    case notConfigured
-    case userNotInitialized
-    case encodingError
-    case noData
-    case unknownError
-}
 
 
 

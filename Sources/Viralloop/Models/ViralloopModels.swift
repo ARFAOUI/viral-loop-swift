@@ -158,3 +158,35 @@ public struct APIError: Codable {
 struct UserResponse: Codable {
     let user: User
 }
+
+public struct ReferralSubmissionResponse: Codable {
+    public let success: Bool
+    public let relationship: Relationship
+}
+
+public struct Relationship: Codable {
+    public let id: Int
+    public let status: String
+    public let activationDate: String
+    
+    public init(id: Int, status: String, activationDate: String) {
+        self.id = id
+        self.status = status
+        self.activationDate = activationDate
+    }
+}
+
+public enum ViralloopError: Error {
+    case invalidResponse
+    case apiError(message: String)
+    case notConfigured
+    case userNotInitialized
+    case encodingError
+    case noData
+    case unknownError
+    case decodingError(message: String)
+}
+
+struct APIErrorResponse: Codable {
+    let message: String
+}
