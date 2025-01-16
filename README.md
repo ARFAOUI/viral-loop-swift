@@ -186,9 +186,3 @@ The SDK includes a logging mechanism with different log levels:
 ## Requirements
 - iOS 13.0+
 - Swift 5.3+
-
-## License
-(Add your license information)
-
-## Support
-For any issues or questions, please contact [Your Support Email/Channel]
