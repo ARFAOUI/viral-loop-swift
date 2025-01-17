@@ -10,7 +10,17 @@ import Foundation
 internal enum Storage {
     private static let userIdKey = "com.viralloop.userId"
     private static let referralCodeKey = "com.viralloop.referralCode"
+    private static let lastUpdateKey = "com.viralloop.lastUpdate"
     private static var referralStatusCache: ReferralCache?
+    
+    static func getLastUpdate() -> Date? {
+        return UserDefaults.standard.object(forKey: lastUpdateKey) as? Date
+    }
+    
+    static func saveLastUpdate(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: lastUpdateKey)
+        
+    }
     
     static func saveUserId(_ userId: String) {
         UserDefaults.standard.set(userId, forKey: userIdKey)

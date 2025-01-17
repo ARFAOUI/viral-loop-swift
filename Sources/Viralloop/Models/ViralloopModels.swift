@@ -190,3 +190,13 @@ public enum ViralloopError: Error {
 struct APIErrorResponse: Codable {
     let message: String
 }
+
+internal struct UserDailyUpdate: Codable {
+    let deviceType: String
+    let deviceBrand: String
+    let deviceModel: String
+    let operatingSystem: String
+    let osVersion: String
+    let appVersion: String
+    let appBuildNumber: String
+}

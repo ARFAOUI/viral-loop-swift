@@ -75,6 +75,7 @@ public class ViralloopClient {
                 referralCode: Storage.getReferralCode()
             )
             Logger.info("Existing user loaded: \(existingUserId)")
+            updateUserIfNeeded()
             return
         }
 
@@ -211,6 +212,48 @@ public class ViralloopClient {
         }
     }
     
+    private func shouldUpdateToday() -> Bool {
+        guard let lastUpdate = Storage.getLastUpdate() else {
+            return true
+        }
+        return !Calendar.current.isDateInToday(lastUpdate)
+    }
+
+    private func updateUserIfNeeded() {
+        guard let userId = currentUser?.externalUserId,
+              shouldUpdateToday() else {
+            return
+        }
+        
+        let deviceInfo = DeviceInfo.getDeviceInfo()
+        let appInfo = DeviceInfo.getAppInfo()
+        
+        let update = UserDailyUpdate(
+            deviceType: deviceInfo.deviceType,
+            deviceBrand: deviceInfo.brand,
+            deviceModel: deviceInfo.model,
+            operatingSystem: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            appVersion: appInfo.version,
+            appBuildNumber: String(appInfo.buildNumber)
+        )
+        
+        guard let data = try? JSONEncoder().encode(update) else {
+            Logger.error("Failed to encode daily update")
+            return
+        }
+        
+        makeRequest("users/\(userId)", method: "PUT", body: data) { (result: Result<User, Error>) in
+               switch result {
+               case .success(_):
+                   Storage.saveLastUpdate(Date())
+                   Logger.info("Daily update successful")
+               case .failure(let error):
+                   Logger.error("Failed to send daily update: \(error)")
+               }
+           }
+    }
+    
     public func updateLifetimeValue(_ lifetimeValue: Double, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let userId = currentUser?.externalUserId else {
             completion(.failure(ViralloopError.userNotInitialized))
@@ -241,9 +284,9 @@ public class ViralloopClient {
     // MARK: - Private Network Request Method
     
     private func makeRequest<T: Codable>(_ endpoint: String,
-                                         method: String = "GET",
-                                         body: Data? = nil,
-                                         completion: @escaping (Result<T, Error>) -> Void) {
+                                        method: String = "GET",
+                                        body: Data? = nil,
+                                        completion: @escaping (Result<T, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/apps/\(appId)/\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -251,12 +294,18 @@ public class ViralloopClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         if let body = body {
+            // Pretty print request body
+            if let json = try? JSONSerialization.jsonObject(with: body, options: []),
+               let prettyData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+               let prettyString = String(data: prettyData, encoding: .utf8) {
+                Logger.debug("Request body for \(endpoint):\n\(prettyString)")
+            } else {
+                Logger.debug("Request body: \(String(data: body, encoding: .utf8) ?? "")")
+            }
             request.httpBody = body
-            Logger.debug("Request body: \(String(data: body, encoding: .utf8) ?? "")")
         }
         
         let task = session.dataTask(with: request) { data, response, error in
-            // Error handling
             if let error = error {
                 DispatchQueue.main.async {
                     completion(.failure(error))
@@ -278,23 +327,22 @@ public class ViralloopClient {
                 return
             }
             
-            // Debug logging for full JSON response
-            if let rawJsonString = String(data: data, encoding: .utf8) {
+            // Pretty print response JSON
+            if let json = try? JSONSerialization.jsonObject(with: data, options: []),
+               let prettyData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+               let prettyString = String(data: prettyData, encoding: .utf8) {
+                Logger.debug("Response for \(endpoint):\n\(prettyString)")
+            } else if let rawJsonString = String(data: data, encoding: .utf8) {
                 Logger.debug("Raw JSON Response for \(endpoint): \(rawJsonString)")
             }
             
-            // HTTP error handling
+            // Rest of the existing implementation...
             if httpResponse.statusCode >= 400 {
                 do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                        if let errorMessage = json["error"] as? String {
-                            DispatchQueue.main.async {
-                                completion(.failure(ViralloopError.apiError(message: errorMessage)))
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                completion(.failure(ViralloopError.unknownError))
-                            }
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let errorMessage = json["error"] as? String {
+                        DispatchQueue.main.async {
+                            completion(.failure(ViralloopError.apiError(message: errorMessage)))
                         }
                     } else {
                         DispatchQueue.main.async {
@@ -309,37 +357,29 @@ public class ViralloopClient {
                 return
             }
             
-            // Decoding
             do {
                 if T.self == User.self {
-                    // Try decoding as UserResponse first
                     if let userResponse = try? JSONDecoder().decode(UserResponse.self, from: data) {
                         DispatchQueue.main.async {
                             completion(.success(userResponse.user as! T))
                         }
                     } else {
-                        // If that fails, try decoding directly as User
                         let user = try JSONDecoder().decode(User.self, from: data)
                         DispatchQueue.main.async {
                             completion(.success(user as! T))
                         }
                     }
                 } else {
-                    // General case for other types
                     let decoded = try JSONDecoder().decode(T.self, from: data)
                     DispatchQueue.main.async {
                         completion(.success(decoded))
                     }
                 }
             } catch {
-                // Log detailed decoding error
                 Logger.error("Decoding Error: \(error)")
-                
-                // If decoding fails, log the raw data for investigation
                 if let rawJsonString = String(data: data, encoding: .utf8) {
                     Logger.error("Failed to decode JSON: \(rawJsonString)")
                 }
-                
                 DispatchQueue.main.async {
                     completion(.failure(ViralloopError.decodingError(message: error.localizedDescription)))
                 }

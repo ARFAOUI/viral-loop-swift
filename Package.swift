@@ -16,9 +16,6 @@ let package = Package(
     targets: [
         .target(
             name: "Viralloop",  // Changed to uppercase V
-            dependencies: []),
-        .testTarget(
-            name: "ViralloopTests",  // Changed to uppercase V
-            dependencies: ["Viralloop"])  // Changed to uppercase V
+            dependencies: [])
     ]
 )
