@@ -3,20 +3,48 @@ import Foundation
 public class ViralloopClient {
     // Shared instance
     // MARK: - Shared Instance Management
-     static var sharedInstance: ViralloopClient?  // Changed from 'shared' to 'sharedInstance'
+     static var sharedInstance: ViralloopClient?
+    private let secureStorage = SecureStorage()
      private static let lock = NSLock()
      
      public static func configure(apiKey: String, appId: String, logLevel: LogLevel = .info) {
          lock.lock()
-         defer { lock.unlock() }
-         
-         if sharedInstance != nil {  // Updated reference
-             Logger.warning("ViralloopClient already configured. Ignoring new configuration.")
-             return
-         }
-         
-         sharedInstance = ViralloopClient(apiKey: apiKey, appId: appId, logLevel: logLevel)  // Updated reference
+                defer { lock.unlock() }
+                
+                if sharedInstance != nil {
+                    Logger.warning("ViralloopClient already configured. Ignoring new configuration.")
+                    return
+                }
+                
+                let instance = ViralloopClient(apiKey: apiKey, appId: appId, logLevel: logLevel)
+                
+                // Migrate old data when configuring for the first time
+                instance.migrateFromUserDefaults()
+                
+                sharedInstance = instance
      }
+    
+    private func migrateFromUserDefaults() {
+          if let oldUserId = UserDefaults.standard.string(forKey: "com.viralloop.userId") {
+              do {
+                  try secureStorage.saveUserId(oldUserId)
+                  UserDefaults.standard.removeObject(forKey: "com.viralloop.userId")
+                  Logger.info("Successfully migrated user ID to Keychain")
+              } catch {
+                  Logger.error("Failed to migrate user ID to Keychain: \(error)")
+              }
+          }
+        
+        // Migrate referralCode
+            if let oldReferralCode = UserDefaults.standard.string(forKey: "com.viralloop.referralCode") {
+                do {
+                    try secureStorage.saveReferralCode(oldReferralCode)
+                    Logger.info("Successfully migrated referral code to Keychain")
+                } catch {
+                    Logger.error("Failed to migrate referral code to Keychain: \(error)")
+                }
+            }
+      }
 
      public static func shared() -> ViralloopClient {
          lock.lock()
@@ -56,13 +84,87 @@ public class ViralloopClient {
      }
     
     private func initializeUser() {
-        // Check if we already have a user ID
-        if let existingUserId = Storage.getUserId() {
+        // First check for existing UserDefaults data to migrate
+        if let legacyUserId = UserDefaults.standard.string(forKey: "com.viralloop.userId") {
+            do {
+                // Try to migrate to Keychain
+                try secureStorage.saveUserId(legacyUserId)
+                // If successful, remove from UserDefaults
+                UserDefaults.standard.removeObject(forKey: "com.viralloop.userId")
+                Logger.info("Successfully migrated user ID from UserDefaults to Keychain: \(legacyUserId)")
+            } catch {
+                Logger.warning("Failed to migrate user ID to Keychain, will continue using UserDefaults: \(error)")
+            }
+        }
+
+        do {
+            if let existingUserId = try secureStorage.getUserId() {
+                let deviceInfo = DeviceInfo.getDeviceInfo()
+                let appInfo = DeviceInfo.getAppInfo()
+                
+                // Record this installation in secure storage
+                do {
+                    try secureStorage.recordInstallation(
+                        deviceFingerprint: "\(deviceInfo.brand)-\(deviceInfo.model)-\(deviceInfo.deviceType)",
+                        referralCode: nil
+                    )
+                } catch {
+                    Logger.warning("Failed to record installation: \(error)")
+                }
+                
+                // Check installation history for potential fraud
+                if let history = try? secureStorage.retrieveInstallationHistory(),
+                   history.count > 1 {
+                    Logger.warning("Multiple installations detected: \(history.count)")
+                }
+                
+                // Create initial user object
+                currentUser = User(
+                    externalUserId: existingUserId,
+                    deviceType: deviceInfo.deviceType,
+                    deviceBrand: deviceInfo.brand,
+                    deviceModel: deviceInfo.model,
+                    operatingSystem: deviceInfo.os,
+                    osVersion: deviceInfo.osVersion,
+                    appVersion: appInfo.version,
+                    appBuildNumber: String(appInfo.buildNumber),
+                    isPaidUser: false,
+                    lifetimeValueUsd: 0.0,
+                    referralCode: Storage.getReferralCode()
+                )
+                
+                // Refresh user info from server
+                updateUserIfNeeded()
+                
+                Logger.info("Existing user loaded: \(existingUserId)")
+                return
+            }
+            
+            // Initialize new user
             let deviceInfo = DeviceInfo.getDeviceInfo()
             let appInfo = DeviceInfo.getAppInfo()
+            let userId = DeviceInfo.generateUserId()
+            
+            // Try to save to secure storage, fallback to UserDefaults
+            do {
+                try secureStorage.saveUserId(userId)
+            } catch {
+                Logger.warning("Failed to save to Keychain, falling back to UserDefaults: \(error)")
+                UserDefaults.standard.set(userId, forKey: "com.viralloop.userId")
+            }
+            
+            // Record first installation
+            do {
+                try secureStorage.recordInstallation(
+                    deviceFingerprint: "\(deviceInfo.brand)-\(deviceInfo.model)-\(deviceInfo.deviceType)",
+                    referralCode: nil
+                )
+            } catch {
+                Logger.warning("Failed to record first installation: \(error)")
+            }
             
             currentUser = User(
-                externalUserId: existingUserId,
+                externalUserId: userId,
                 deviceType: deviceInfo.deviceType,
                 deviceBrand: deviceInfo.brand,
                 deviceModel: deviceInfo.model,
@@ -71,44 +173,94 @@ public class ViralloopClient {
                 appVersion: appInfo.version,
                 appBuildNumber: String(appInfo.buildNumber),
                 isPaidUser: false,
-                lifetimeValueUsd: 0.0,  // Explicitly set as Double
-                referralCode: Storage.getReferralCode()
+                lifetimeValueUsd: 0.0,
+                referralCode: nil
             )
-            Logger.info("Existing user loaded: \(existingUserId)")
-            updateUserIfNeeded()
-            return
-        }
-
-        // Initialize new user
-        let deviceInfo = DeviceInfo.getDeviceInfo()
-        let appInfo = DeviceInfo.getAppInfo()
-        let userId = DeviceInfo.generateUserId()
-        
-        currentUser = User(
-            externalUserId: userId,
-            deviceType: deviceInfo.deviceType,
-            deviceBrand: deviceInfo.brand,
-            deviceModel: deviceInfo.model,
-            operatingSystem: deviceInfo.os,
-            osVersion: deviceInfo.osVersion,
-            appVersion: appInfo.version,
-            appBuildNumber: String(appInfo.buildNumber),
-            isPaidUser: false,
-            lifetimeValueUsd: 0.0,  // Explicitly set as Double
-            referralCode: nil
-        )
-        
-        registerUser { [weak self] result in
-            switch result {
-            case .success(let registeredUser):
-                Storage.saveUserId(registeredUser.externalUserId)
-                if let referralCode = registeredUser.referralCode {
-                    Storage.saveReferralCode(referralCode)
+            
+            registerUser { [weak self] result in
+                switch result {
+                case .success(let registeredUser):
+                    if let referralCode = registeredUser.referralCode {
+                        Storage.saveReferralCode(referralCode)
+                    }
+                    self?.currentUser = registeredUser
+                    Logger.info("New user registered: \(registeredUser.externalUserId)")
+                case .failure(let error):
+                    Logger.error("Failed to register user: \(error)")
                 }
-                self?.currentUser = registeredUser
-                Logger.info("New user registered: \(registeredUser.externalUserId)")
-            case .failure(let error):
-                Logger.error("Failed to register user: \(error)")
+            }
+        } catch {
+            Logger.error("Failed to initialize user: \(error)")
+            
+            // Complete fallback to UserDefaults
+            if let userId = UserDefaults.standard.string(forKey: "com.viralloop.userId") {
+                let deviceInfo = DeviceInfo.getDeviceInfo()
+                let appInfo = DeviceInfo.getAppInfo()
+                
+                currentUser = User(
+                    externalUserId: userId,
+                    deviceType: deviceInfo.deviceType,
+                    deviceBrand: deviceInfo.brand,
+                    deviceModel: deviceInfo.model,
+                    operatingSystem: deviceInfo.os,
+                    osVersion: deviceInfo.osVersion,
+                    appVersion: appInfo.version,
+                    appBuildNumber: String(appInfo.buildNumber),
+                    isPaidUser: false,
+                    lifetimeValueUsd: 0.0,
+                    referralCode: Storage.getReferralCode()
+                )
+                
+                // Also refresh user info in fallback case
+                makeRequest("users/\(userId)", method: "GET") { [weak self] (result: Result<User, Error>) in
+                    switch result {
+                    case .success(let user):
+                        self?.currentUser = user
+                        if let referralCode = user.referralCode {
+                            Storage.saveReferralCode(referralCode)
+                        }
+                        Logger.info("Refreshed existing user info (UserDefaults): \(userId)")
+                    case .failure(let error):
+                        Logger.error("Failed to refresh user info (UserDefaults): \(error)")
+                    }
+                }
+                
+                Logger.info("Initialized user from UserDefaults: \(userId)")
+            } else {
+                // Create new user with UserDefaults as last resort
+                let userId = DeviceInfo.generateUserId()
+                UserDefaults.standard.set(userId, forKey: "com.viralloop.userId")
+                
+                let deviceInfo = DeviceInfo.getDeviceInfo()
+                let appInfo = DeviceInfo.getAppInfo()
+                
+                currentUser = User(
+                    externalUserId: userId,
+                    deviceType: deviceInfo.deviceType,
+                    deviceBrand: deviceInfo.brand,
+                    deviceModel: deviceInfo.model,
+                    operatingSystem: deviceInfo.os,
+                    osVersion: deviceInfo.osVersion,
+                    appVersion: appInfo.version,
+                    appBuildNumber: String(appInfo.buildNumber),
+                    isPaidUser: false,
+                    lifetimeValueUsd: 0.0,
+                    referralCode: nil
+                )
+                Logger.info("Created new user with UserDefaults: \(userId)")
+                
+                registerUser { [weak self] result in
+                    switch result {
+                    case .success(let registeredUser):
+                        if let referralCode = registeredUser.referralCode {
+                            Storage.saveReferralCode(referralCode)
+                        }
+                        self?.currentUser = registeredUser
+                        Logger.info("New user registered (UserDefaults fallback): \(registeredUser.externalUserId)")
+                    case .failure(let error):
+                        Logger.error("Failed to register user (UserDefaults fallback): \(error)")
+                    }
+                }
             }
         }
     }
@@ -245,8 +397,12 @@ public class ViralloopClient {
         
         makeRequest("users/\(userId)", method: "PUT", body: data) { (result: Result<User, Error>) in
                switch result {
-               case .success(_):
+               case .success(let user):
                    Storage.saveLastUpdate(Date())
+                   Storage.saveLastUpdate(Date())
+                     if let referralCode = user.referralCode {
+                         Storage.saveReferralCode(referralCode)
+                     }
                    Logger.info("Daily update successful")
                case .failure(let error):
                    Logger.error("Failed to send daily update: \(error)")

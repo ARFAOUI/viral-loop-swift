@@ -200,3 +200,11 @@ internal struct UserDailyUpdate: Codable {
     let appVersion: String
     let appBuildNumber: String
 }
+
+struct InstallationRecord: Codable {
+    let timestamp: Date
+    let deviceFingerprint: String
+    let referralCode: String?
+}
+
+
