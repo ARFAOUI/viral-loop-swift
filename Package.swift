@@ -1,21 +1,23 @@
-// swift-tools-version:5.9
+// swift-tools-version:5.5
 import PackageDescription
 
 let package = Package(
-    name: "Viralloop",  // Changed to uppercase V
+    name: "Viralloop",
     platforms: [
         .iOS(.v13),
-        .macOS(.v13)
     ],
     products: [
         .library(
-            name: "Viralloop",  // Changed to uppercase V
-            targets: ["Viralloop"]),  // Changed to uppercase V
+            name: "Viralloop",
+            targets: ["Viralloop"]),
     ],
-    dependencies: [],
     targets: [
         .target(
-            name: "Viralloop",  // Changed to uppercase V
-            dependencies: [])
+            name: "Viralloop",
+            dependencies: [],
+            linkerSettings: [
+                .linkedFramework("Network")
+            ]
+        )
     ]
 )

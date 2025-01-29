@@ -9,6 +9,7 @@ import Foundation
 #if canImport(UIKit)
 import UIKit
 #endif
+import Network
 
 internal struct DeviceInfo {
     static func getDeviceInfo() -> (deviceType: String, brand: String, model: String, os: String, osVersion: String) {
@@ -52,5 +53,18 @@ internal struct DeviceInfo {
             }
         #endif
         return UUID().uuidString
+    }
+    
+    static func getCurrentConnectivity() -> String {
+        let monitor = NWPathMonitor()
+        var connectivity = "unknown"
+        
+        if monitor.currentPath.usesInterfaceType(.wifi) {
+            connectivity = "Wifi"
+        } else if monitor.currentPath.usesInterfaceType(.cellular) {
+            connectivity = "Cellular"
+        }
+        
+        return connectivity
     }
 }

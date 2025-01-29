@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Network
 
 internal struct User: Codable {
     let externalUserId: String
@@ -19,6 +20,12 @@ internal struct User: Codable {
     let isPaidUser: Bool
     let lifetimeValueUsd: Double
     let referralCode: String?
+    let countryCode: String
+    let connectivity: String
+    let deviceLanguage: String
+    let timezone: String
+    let firstReferralSource: String?
+    let attributionSource: String?
     
     enum CodingKeys: String, CodingKey {
         case externalUserId
@@ -32,6 +39,12 @@ internal struct User: Codable {
         case isPaidUser
         case lifetimeValueUsd
         case referralCode
+        case countryCode
+        case connectivity
+        case deviceLanguage
+        case timezone
+        case firstReferralSource
+        case attributionSource
     }
     
     public init(from decoder: Decoder) throws {
@@ -46,6 +59,12 @@ internal struct User: Codable {
         appVersion = try container.decode(String.self, forKey: .appVersion)
         isPaidUser = try container.decode(Bool.self, forKey: .isPaidUser)
         referralCode = try container.decodeIfPresent(String.self, forKey: .referralCode)
+        countryCode = try container.decodeIfPresent(String.self, forKey: .countryCode) ?? "unknown"
+        connectivity = try container.decodeIfPresent(String.self, forKey: .connectivity) ?? "unknown"
+        deviceLanguage = try container.decodeIfPresent(String.self, forKey: .deviceLanguage) ?? "unknown"
+        timezone = try container.decodeIfPresent(String.self, forKey: .timezone) ?? "unknown"
+        firstReferralSource = try container.decodeIfPresent(String.self, forKey: .firstReferralSource)
+        attributionSource = try container.decodeIfPresent(String.self, forKey: .attributionSource)
         
         // Robust decoding for lifetimeValueUsd
         if let doubleValue = try? container.decode(Double.self, forKey: .lifetimeValueUsd) {
@@ -81,7 +100,13 @@ internal struct User: Codable {
         appBuildNumber: String,
         isPaidUser: Bool,
         lifetimeValueUsd: Double,
-        referralCode: String? = nil
+        referralCode: String? = nil,
+        countryCode: String = "unknown",
+        connectivity: String = "unknown",
+        deviceLanguage: String = "unknown",
+        timezone: String = "unknown",
+        firstReferralSource: String? = nil,
+        attributionSource: String? = nil
     ) {
         self.externalUserId = externalUserId
         self.deviceType = deviceType
@@ -94,6 +119,12 @@ internal struct User: Codable {
         self.isPaidUser = isPaidUser
         self.lifetimeValueUsd = lifetimeValueUsd
         self.referralCode = referralCode
+        self.countryCode = countryCode
+        self.connectivity = connectivity
+        self.deviceLanguage = deviceLanguage
+        self.timezone = timezone
+        self.firstReferralSource = firstReferralSource
+        self.attributionSource = attributionSource
     }
 }
 
@@ -144,6 +175,10 @@ internal struct UserUpdate: Codable {
     let lifetimeValueUsd: Double
 }
 
+internal struct AttributionUpdate: Codable {
+    let firstReferralSource: String?
+    let attributionSource: String?
+}
 
 public struct APIError: Codable {
     public let error: String
@@ -199,6 +234,10 @@ internal struct UserDailyUpdate: Codable {
     let osVersion: String
     let appVersion: String
     let appBuildNumber: String
+    let countryCode: String
+    let connectivity: String
+    let deviceLanguage: String
+    let timezone: String
 }
 
 struct InstallationRecord: Codable {

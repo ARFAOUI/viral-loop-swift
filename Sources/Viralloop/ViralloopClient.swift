@@ -1,11 +1,20 @@
+//
+//  Storage.swift
+//  viralloop
+//
+//  Created by Bechir Arfaoui on 15.01.25.
+//
+
 import Foundation
 
 public class ViralloopClient {
     // Shared instance
     // MARK: - Shared Instance Management
-     static var sharedInstance: ViralloopClient?
+    static var sharedInstance: ViralloopClient?
     private let secureStorage = SecureStorage()
-     private static let lock = NSLock()
+    private var firstReferralSource: String?
+    private var attributionSource: String?
+    private static let lock = NSLock()
      
      public static func configure(apiKey: String, appId: String, logLevel: LogLevel = .info) {
          lock.lock()
@@ -245,8 +254,15 @@ public class ViralloopClient {
                     appBuildNumber: String(appInfo.buildNumber),
                     isPaidUser: false,
                     lifetimeValueUsd: 0.0,
-                    referralCode: nil
+                    referralCode: nil,
+                    countryCode: Locale.current.regionCode ?? "unknown",
+                    connectivity: DeviceInfo.getCurrentConnectivity(),
+                    deviceLanguage: Locale.current.languageCode ?? "unknown",
+                    timezone: TimeZone.current.identifier,
+                    firstReferralSource: self.firstReferralSource,
+                    attributionSource: self.attributionSource
                 )
+                
                 Logger.info("Created new user with UserDefaults: \(userId)")
                 
                 registerUser { [weak self] result in
@@ -281,7 +297,39 @@ public class ViralloopClient {
         makeRequest("users", method: "POST", body: data, completion: completion)
     }
     
+    private func updateAttributionData(userId: String) {
+         let update = AttributionUpdate(
+             firstReferralSource: firstReferralSource,
+             attributionSource: attributionSource
+         )
+         
+         guard let data = try? JSONEncoder().encode(update) else {
+             Logger.error("Failed to encode attribution update")
+             return
+         }
+         
+         makeRequest("users/\(userId)/attribution", method: "PUT", body: data) { (result: Result<User, Error>) in
+             switch result {
+             case .success(let user):
+                 self.currentUser = user
+                 Logger.info("Attribution data updated successfully")
+             case .failure(let error):
+                 Logger.error("Failed to update attribution data: \(error)")
+             }
+         }
+     }
+    
     // MARK: - Public Methods
+    
+    public func setAttributionData(firstReferralSource: String?, attributionSource: String?) {
+          self.firstReferralSource = firstReferralSource
+          self.attributionSource = attributionSource
+          
+          // If user is already initialized, update the server
+          if let userId = currentUser?.externalUserId {
+              updateAttributionData(userId: userId)
+          }
+      }
     
     public func getReferralStatus(completion: @escaping (Result<ReferralStatus, Error>) -> Void) {
         if let cachedStatus = Storage.getCachedReferralStatus() {
@@ -387,7 +435,11 @@ public class ViralloopClient {
             operatingSystem: deviceInfo.os,
             osVersion: deviceInfo.osVersion,
             appVersion: appInfo.version,
-            appBuildNumber: String(appInfo.buildNumber)
+            appBuildNumber: String(appInfo.buildNumber),
+            countryCode: Locale.current.regionCode ?? "unknown",
+            connectivity: DeviceInfo.getCurrentConnectivity(),
+            deviceLanguage: Locale.current.languageCode ?? "unknown",
+            timezone: TimeZone.current.identifier
         )
         
         guard let data = try? JSONEncoder().encode(update) else {
@@ -544,6 +596,7 @@ public class ViralloopClient {
         
         task.resume()
     }
+    
 }
 
 
